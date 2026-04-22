@@ -9,7 +9,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -29,6 +29,13 @@ export function Navbar() {
   const pathname = usePathname();
   const { user } = useUser();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Auto-provision user in database on first visit
+  useEffect(() => {
+    if (user) {
+      fetch("/api/users/me").catch(() => {});
+    }
+  }, [user]);
 
   const isAdmin = user?.publicMetadata?.role === "admin";
   const allItems = isAdmin ? [...navItems, ...adminItems] : navItems;
