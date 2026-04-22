@@ -6,9 +6,43 @@ export async function getCurrentUser() {
   const { userId } = await auth();
   if (!userId) return null;
 
-  const user = await prisma.user.findUnique({
+  let user = await prisma.user.findUnique({
     where: { clerkId: userId },
   });
+
+  // Auto-provision from Clerk if not in DB yet
+  if (!user) {
+    try {
+      const clerkRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+        headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` },
+      });
+      if (clerkRes.ok) {
+        const c = await clerkRes.json();
+        const email = c.email_addresses?.[0]?.email_address || "";
+        const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || email || "User";
+        const role = (c.public_metadata?.role as string) === "admin" ? "admin" : "participant";
+
+        try {
+          user = await prisma.user.upsert({
+            where: { clerkId: userId },
+            update: { name, email, avatarUrl: c.image_url },
+            create: { clerkId: userId, name, email, role: role as "admin" | "participant", avatarUrl: c.image_url },
+          });
+        } catch {
+          // Handle email unique constraint — claim existing record
+          if (email) {
+            user = await prisma.user.update({
+              where: { email },
+              data: { clerkId: userId, name, avatarUrl: c.image_url },
+            }).catch(() => null);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[auth-utils] Auto-provision failed:", err);
+    }
+  }
+
   return user;
 }
 
