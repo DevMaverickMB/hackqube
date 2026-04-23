@@ -63,11 +63,13 @@ export async function DELETE(
     await prisma.$transaction([
       prisma.vote.deleteMany({ where: { presentationId: id } }),
       prisma.score.deleteMany({ where: { presentationId: id } }),
+      prisma.votingSession.deleteMany({ where: { presentationId: id } }),
       prisma.presentation.delete({ where: { id } }),
     ]);
   } catch (err) {
     console.error("Failed to delete schedule entry", id, err);
-    return errorResponse("Failed to delete schedule entry", 500);
+    const message = err instanceof Error ? err.message : "Failed to delete schedule entry";
+    return errorResponse(message, 500);
   }
 
   return NextResponse.json({ success: true });

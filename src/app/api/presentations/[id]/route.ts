@@ -127,11 +127,13 @@ export async function DELETE(
       await prisma.$transaction([
         prisma.vote.deleteMany({ where: { presentationId: id } }),
         prisma.score.deleteMany({ where: { presentationId: id } }),
+        prisma.votingSession.deleteMany({ where: { presentationId: id } }),
         prisma.presentation.delete({ where: { id } }),
       ]);
     } catch (err) {
       console.error("Failed to delete presentation", id, err);
-      return errorResponse("Failed to delete presentation", 500);
+      const message = err instanceof Error ? err.message : "Failed to delete presentation";
+      return errorResponse(message, 500);
     }
 
     await prisma.auditLog.create({
