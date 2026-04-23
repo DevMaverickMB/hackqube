@@ -46,7 +46,7 @@ interface User {
 
 interface ScheduleEntry {
   id: string;
-  scheduledDate: string;
+  scheduledDate: string | null;
   title: string | null;
   status: string;
   user: { id: string; name: string; avatarUrl: string | null };
@@ -179,14 +179,16 @@ export function ScheduleManager() {
   const openEditDialog = (entry: ScheduleEntry) => {
     setEditEntry(entry);
     setEditUser(entry.user.id);
-    setEditDate(new Date(entry.scheduledDate));
+    setEditDate(entry.scheduledDate ? new Date(entry.scheduledDate) : undefined);
   };
 
   // Group schedule entries by date
   const groupedSchedule = schedule.reduce<
     { date: string; entries: ScheduleEntry[] }[]
   >((acc, entry) => {
-    const dateStr = entry.scheduledDate.split("T")[0];
+    const dateStr = entry.scheduledDate
+      ? entry.scheduledDate.split("T")[0]
+      : "unscheduled";
     const group = acc.find((g) => g.date === dateStr);
     if (group) {
       group.entries.push(entry);
@@ -458,12 +460,12 @@ export function ScheduleManager() {
               Are you sure you want to remove{" "}
               <strong>{deleteEntry?.user.name}</strong> from the schedule on{" "}
               <strong>
-                {deleteEntry
+                {deleteEntry?.scheduledDate
                   ? format(
                       new Date(deleteEntry.scheduledDate),
                       "MMM d, yyyy"
                     )
-                  : ""}
+                  : "—"}
               </strong>
               ? This action cannot be undone.
             </DialogDescription>

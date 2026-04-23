@@ -74,7 +74,7 @@ export function VotingCard({ presentationId, closesAt, onVoteSubmitted }: Voting
         if (res.status === 409) {
           toast.error("You have already voted for this presentation");
         } else if (res.status === 403) {
-          toast.error("Voting window is closed");
+          toast.error(data.error || "Voting window is closed");
         } else {
           toast.error(data.error || "Failed to submit vote");
         }

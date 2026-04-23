@@ -21,7 +21,6 @@ export async function GET(req: NextRequest) {
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     orderBy: [
       { pinnedUntil: { sort: "desc", nulls: "last" } },
-      { source: "desc" },
       { createdAt: "desc" },
     ],
     include: {

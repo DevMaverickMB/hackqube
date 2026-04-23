@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, unauthorizedResponse, forbiddenResponse, errorResponse } from "@/lib/auth-utils";
+import { getCurrentUser, unauthorizedResponse, errorResponse } from "@/lib/auth-utils";
 import { voteSchema } from "@/lib/validations";
 import { computeFinalScore } from "@/lib/scoring";
 
@@ -22,12 +22,12 @@ export async function POST(req: NextRequest) {
   });
 
   if (!activeSession || !activeSession.closesAt) {
-    return forbiddenResponse();
+    return errorResponse("Voting window is closed", 403);
   }
 
   // Check if voting window has expired (with 5s grace period for client clock skew)
   if (Date.now() > activeSession.closesAt.getTime() + 5000) {
-    return forbiddenResponse();
+    return errorResponse("Voting window is closed", 403);
   }
 
   // Prevent self-voting
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (presentation.userId === user.id) {
-    return forbiddenResponse();
+    return errorResponse("You can't vote for your own presentation", 403);
   }
 
   // Check for duplicate vote
