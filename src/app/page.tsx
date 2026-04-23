@@ -61,7 +61,8 @@ export default function DashboardPage() {
         threeDaysOut.setDate(threeDaysOut.getDate() + 3);
 
         const upcoming = schedule
-          .filter((s: { scheduledDate: string }) => {
+          .filter((s: { scheduledDate: string; status: string }) => {
+            if (s.status === "completed") return false;
             const d = new Date(s.scheduledDate);
             return d >= today && d < threeDaysOut;
           })
@@ -78,7 +79,8 @@ export default function DashboardPage() {
 
         const todayStr = new Date().toISOString().split("T")[0];
         const todaySlot = schedule.find(
-          (s: { scheduledDate: string }) => s.scheduledDate.split("T")[0] === todayStr
+          (s: { scheduledDate: string; status: string }) =>
+            s.status !== "completed" && s.scheduledDate.split("T")[0] === todayStr
         );
         if (todaySlot) {
           setTodayPresenter({

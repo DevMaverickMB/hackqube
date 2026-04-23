@@ -64,13 +64,15 @@ export default function CalendarPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Build schedule lookup by date string
+  // Build schedule lookup by date string (multiple entries per day supported)
   const scheduleMap = useMemo(() => {
-    const map = new Map<string, ScheduleEntry>();
+    const map = new Map<string, ScheduleEntry[]>();
     schedule.forEach((entry) => {
       if (!entry.scheduledDate) return;
       const key = new Date(entry.scheduledDate).toISOString().split("T")[0];
-      map.set(key, entry);
+      const list = map.get(key);
+      if (list) list.push(entry);
+      else map.set(key, [entry]);
     });
     return map;
   }, [schedule]);
@@ -181,11 +183,11 @@ export default function CalendarPage() {
             }
 
             const dateKey = format(day, "yyyy-MM-dd");
-            const entry = scheduleMap.get(dateKey);
+            const entries = scheduleMap.get(dateKey) ?? [];
+            const hasEntries = entries.length > 0;
             const today = isToday(day);
             const inMonth = isSameMonth(day, currentMonth);
-            const completed = entry?.status === "completed";
-            const isHovered = hoveredEntry === entry?.id;
+            const allCompleted = hasEntries && entries.every((e) => e.status === "completed");
             const totalRows = Math.ceil(calendarDays.length / 7);
             const rowIndex = Math.floor(idx / 7);
             const isBottomRows = rowIndex >= totalRows - 2;
@@ -197,11 +199,9 @@ export default function CalendarPage() {
                   "relative min-h-[120px] border-b border-r border-white/[0.03] p-2 transition-colors duration-200 group",
                   !inMonth && "opacity-40",
                   today && "bg-primary/[0.06]",
-                  entry && "cursor-pointer hover:bg-white/[0.04]",
-                  !entry && "bg-transparent"
+                  hasEntries && "hover:bg-white/[0.04]",
+                  !hasEntries && "bg-transparent"
                 )}
-                onMouseEnter={() => entry && setHoveredEntry(entry.id)}
-                onMouseLeave={() => setHoveredEntry(null)}
               >
                 {/* Day Number */}
                 <div className="flex items-center justify-between mb-1.5">
@@ -215,115 +215,128 @@ export default function CalendarPage() {
                   >
                     {format(day, "d")}
                   </span>
-                  {entry && completed && (
+                  {hasEntries && allCompleted && (
                     <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
                   )}
-                  {entry && today && !completed && (
+                  {hasEntries && today && !allCompleted && (
                     <CircleDot className="h-3.5 w-3.5 text-primary animate-pulse" />
                   )}
                 </div>
 
-                {/* Inline Session Chip */}
-                {entry && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={cn(
-                      "rounded-lg p-1.5 text-left overflow-hidden transition-colors",
-                      today
-                        ? "bg-primary/15 border border-primary/20"
-                        : completed
-                          ? "bg-green-500/10 border border-green-500/10"
-                          : "bg-white/5 border border-white/5"
-                    )}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <Avatar className="h-5 w-5 shrink-0">
-                        <AvatarImage src={entry.user.avatarUrl || undefined} />
-                        <AvatarFallback className="text-[8px] bg-muted">
-                          {entry.user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-[11px] font-medium text-white truncate leading-tight">
-                        {entry.user.name.split(" ")[0]}
-                      </span>
-                    </div>
-                    {entry.score && (
-                      <span className="block text-[10px] font-mono text-primary mt-1 pl-6">
-                        {Number(entry.score.finalScore).toFixed(2)}
-                      </span>
-                    )}
-                  </motion.div>
-                )}
-
-                {/* Hover Popover */}
-                <AnimatePresence>
-                  {entry && isHovered && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 4, scale: 0.97 }}
-                      transition={{ duration: 0.15 }}
-                      className={cn(
-                        "absolute z-50 left-1/2 -translate-x-1/2 w-64 rounded-2xl border border-white/10 bg-[#0f1219]/95 backdrop-blur-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)] p-4 pointer-events-none",
-                        isBottomRows ? "bottom-full mb-1" : "top-full mt-1"
-                      )}
-                    >
-                      {/* Arrow */}
-                      <div className={cn(
-                        "absolute left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-[#0f1219]",
-                        isBottomRows
-                          ? "-bottom-1.5 border-r border-b border-white/10"
-                          : "-top-1.5 border-l border-t border-white/10"
-                      )} />
-
-                      <div className="flex items-center gap-3 mb-3">
-                        <Avatar className="h-10 w-10 border border-white/10">
-                          <AvatarImage src={entry.user.avatarUrl || undefined} />
-                          <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-700 text-sm font-bold text-white">
-                            {entry.user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-white text-sm">{entry.user.name}</p>
-                          <p className="text-xs text-muted-foreground">{entry.scheduledDate ? format(new Date(entry.scheduledDate), "EEEE, MMM d") : "Unscheduled"}</p>
-                        </div>
-                      </div>
-
-                      {entry.title && (
-                        <div className="mb-3 rounded-lg bg-white/5 p-2.5 border border-white/5">
-                          <p className="text-xs text-muted-foreground mb-0.5 uppercase tracking-wider font-mono">Project</p>
-                          <p className="text-sm text-white font-medium">{entry.title}</p>
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between">
-                        <Badge
-                          variant="outline"
+                {/* Inline Session Chips (one per entry) */}
+                <div className="flex flex-col gap-1">
+                  {entries.map((entry) => {
+                    const completed = entry.status === "completed";
+                    const isHovered = hoveredEntry === entry.id;
+                    return (
+                      <div
+                        key={entry.id}
+                        className="relative"
+                        onMouseEnter={() => setHoveredEntry(entry.id)}
+                        onMouseLeave={() => setHoveredEntry(null)}
+                      >
+                        <motion.div
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
                           className={cn(
-                            "text-[10px] font-bold uppercase tracking-wider",
-                            completed
-                              ? "border-green-500/30 text-green-400 bg-green-500/10"
-                              : today
-                                ? "border-primary/30 text-primary bg-primary/10"
-                                : "border-white/10 text-muted-foreground"
+                            "rounded-lg p-1.5 text-left overflow-hidden transition-colors cursor-pointer",
+                            today && !completed
+                              ? "bg-primary/15 border border-primary/20"
+                              : completed
+                                ? "bg-green-500/10 border border-green-500/10"
+                                : "bg-white/5 border border-white/5"
                           )}
                         >
-                          {completed ? "Completed" : today ? "Live Today" : "Upcoming"}
-                        </Badge>
-
-                        {entry.score && (
                           <div className="flex items-center gap-1.5">
-                            <Trophy className="h-3.5 w-3.5 text-yellow-500" />
-                            <span className="font-mono text-sm font-bold text-white">
-                              {Number(entry.score.finalScore).toFixed(2)}
+                            <Avatar className="h-5 w-5 shrink-0">
+                              <AvatarImage src={entry.user.avatarUrl || undefined} />
+                              <AvatarFallback className="text-[8px] bg-muted">
+                                {entry.user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-[11px] font-medium text-white truncate leading-tight">
+                              {entry.user.name.split(" ")[0]}
                             </span>
                           </div>
-                        )}
+                          {entry.score && (
+                            <span className="block text-[10px] font-mono text-primary mt-1 pl-6">
+                              {Number(entry.score.finalScore).toFixed(2)}
+                            </span>
+                          )}
+                        </motion.div>
+
+                        {/* Hover Popover */}
+                        <AnimatePresence>
+                          {isHovered && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 4, scale: 0.97 }}
+                              transition={{ duration: 0.15 }}
+                              className={cn(
+                                "absolute z-50 left-1/2 -translate-x-1/2 w-64 rounded-2xl border border-white/10 bg-[#0f1219]/95 backdrop-blur-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)] p-4 pointer-events-none",
+                                isBottomRows ? "bottom-full mb-1" : "top-full mt-1"
+                              )}
+                            >
+                              {/* Arrow */}
+                              <div className={cn(
+                                "absolute left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-[#0f1219]",
+                                isBottomRows
+                                  ? "-bottom-1.5 border-r border-b border-white/10"
+                                  : "-top-1.5 border-l border-t border-white/10"
+                              )} />
+
+                              <div className="flex items-center gap-3 mb-3">
+                                <Avatar className="h-10 w-10 border border-white/10">
+                                  <AvatarImage src={entry.user.avatarUrl || undefined} />
+                                  <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-700 text-sm font-bold text-white">
+                                    {entry.user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-white text-sm">{entry.user.name}</p>
+                                  <p className="text-xs text-muted-foreground">{entry.scheduledDate ? format(new Date(entry.scheduledDate), "EEEE, MMM d") : "Unscheduled"}</p>
+                                </div>
+                              </div>
+
+                              {entry.title && (
+                                <div className="mb-3 rounded-lg bg-white/5 p-2.5 border border-white/5">
+                                  <p className="text-xs text-muted-foreground mb-0.5 uppercase tracking-wider font-mono">Project</p>
+                                  <p className="text-sm text-white font-medium">{entry.title}</p>
+                                </div>
+                              )}
+
+                              <div className="flex items-center justify-between">
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "text-[10px] font-bold uppercase tracking-wider",
+                                    completed
+                                      ? "border-green-500/30 text-green-400 bg-green-500/10"
+                                      : today
+                                        ? "border-primary/30 text-primary bg-primary/10"
+                                        : "border-white/10 text-muted-foreground"
+                                  )}
+                                >
+                                  {completed ? "Completed" : today ? "Live Today" : "Upcoming"}
+                                </Badge>
+
+                                {entry.score && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Trophy className="h-3.5 w-3.5 text-yellow-500" />
+                                    <span className="font-mono text-sm font-bold text-white">
+                                      {Number(entry.score.finalScore).toFixed(2)}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}

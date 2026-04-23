@@ -313,7 +313,13 @@ export function ScheduleManager() {
                 disabled={!selectedUser}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select submission" />
+                  <SelectValue placeholder="Select submission">
+                    {selectedSubmission === "none"
+                      ? "No submission (placeholder)"
+                      : availableSubmissions.find(
+                          (s) => s.id === selectedSubmission
+                        )?.title?.trim() || "Untitled submission"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">

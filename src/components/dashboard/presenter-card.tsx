@@ -45,7 +45,7 @@ export function UpcomingSessionsCard({ sessions }: UpcomingSessionsCardProps) {
     );
   }
 
-  const todaySession = sessions.find((s) => isToday(new Date(s.scheduledDate)));
+  const todaySessions = sessions.filter((s) => isToday(new Date(s.scheduledDate)));
   const upNext = sessions.filter((s) => !isToday(new Date(s.scheduledDate)));
 
   return (
@@ -63,8 +63,8 @@ export function UpcomingSessionsCard({ sessions }: UpcomingSessionsCardProps) {
       </div>
 
       <CardContent className="p-4 flex-1 flex flex-col gap-3">
-        {/* Today's session — highlighted */}
-        {todaySession && (
+        {/* Today's sessions — highlighted */}
+        {todaySessions.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -75,22 +75,26 @@ export function UpcomingSessionsCard({ sessions }: UpcomingSessionsCardProps) {
               <Sparkles className="h-3.5 w-3.5 text-blue-400" />
               <span className="text-xs font-bold uppercase tracking-widest text-blue-400">Today</span>
             </div>
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10 border border-white/10 shadow-lg">
-                <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-700 text-sm font-bold text-white">
-                  {todaySession.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-white truncate">{todaySession.name}</p>
-                <p className="text-xs text-slate-400 truncate">{todaySession.title || "Untitled project"}</p>
-              </div>
+            <div className="flex flex-col gap-3">
+              {todaySessions.map((todaySession) => (
+                <div key={todaySession.presentationId} className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10 border border-white/10 shadow-lg">
+                    <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-700 text-sm font-bold text-white">
+                      {todaySession.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-white truncate">{todaySession.name}</p>
+                    <p className="text-xs text-slate-400 truncate">{todaySession.title || "Untitled project"}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </motion.div>
         )}
 
         {/* Divider if both exist */}
-        {todaySession && upNext.length > 0 && (
+        {todaySessions.length > 0 && upNext.length > 0 && (
           <div className="flex items-center gap-2 px-1">
             <div className="flex-1 h-px bg-white/5" />
             <span className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">up next</span>
