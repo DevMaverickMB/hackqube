@@ -30,7 +30,7 @@ interface PresentationEntry {
   id: string;
   title: string | null;
   status: string;
-  scheduledDate: string;
+  scheduledDate: string | null;
   user: { name: string };
   score: { finalScore: string | number; voteCount: number } | null;
 }
@@ -132,7 +132,7 @@ export function SubmissionsManager() {
                     {p.title || "—"}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {format(new Date(p.scheduledDate), "MMM d")}
+                    {p.scheduledDate ? format(new Date(p.scheduledDate), "MMM d") : <span className="text-muted-foreground italic">Unscheduled</span>}
                   </TableCell>
                   <TableCell>
                     <Badge variant={p.status === "completed" ? "default" : "secondary"}>

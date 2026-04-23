@@ -24,7 +24,7 @@ interface PresentationEntry {
   category: string | null;
   status: string;
   implementationStatus: string;
-  scheduledDate: string;
+  scheduledDate: string | null;
   user: {
     id: string;
     name: string;

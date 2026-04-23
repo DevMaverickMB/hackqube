@@ -34,7 +34,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 interface ScheduleEntry {
   id: string;
-  scheduledDate: string;
+  scheduledDate: string | null;
   title: string | null;
   status: string;
   user: {

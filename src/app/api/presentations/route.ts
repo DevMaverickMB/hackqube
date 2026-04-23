@@ -28,28 +28,38 @@ export async function POST(req: NextRequest) {
     return errorResponse("Invalid presentation data", 400);
   }
 
-  // Find the user's scheduled presentation
+  const data = {
+    title: parsed.data.title,
+    problemStatement: parsed.data.problem_statement,
+    aiToolsUsed: parsed.data.ai_tools_used,
+    approach: parsed.data.approach,
+    demoLink: parsed.data.demo_link || null,
+    impactLevel: parsed.data.impact_level,
+    category: parsed.data.category,
+    attachments: parsed.data.attachments ?? [],
+  };
+
+  // Find the user's most recent upcoming presentation (scheduled or not)
   const existing = await prisma.presentation.findFirst({
     where: { userId: user.id, status: "upcoming" },
+    orderBy: { createdAt: "desc" },
   });
 
-  if (!existing) {
-    return errorResponse("You don't have a scheduled presentation", 404);
+  if (existing) {
+    const updated = await prisma.presentation.update({
+      where: { id: existing.id },
+      data,
+    });
+    return NextResponse.json(updated);
   }
 
-  const updated = await prisma.presentation.update({
-    where: { id: existing.id },
+  // No existing submission — create a new unscheduled one. Admin can schedule later.
+  const created = await prisma.presentation.create({
     data: {
-      title: parsed.data.title,
-      problemStatement: parsed.data.problem_statement,
-      aiToolsUsed: parsed.data.ai_tools_used,
-      approach: parsed.data.approach,
-      demoLink: parsed.data.demo_link || null,
-      impactLevel: parsed.data.impact_level,
-      category: parsed.data.category,
-      attachments: parsed.data.attachments ?? [],
+      ...data,
+      userId: user.id,
+      scheduledDate: null,
     },
   });
-
-  return NextResponse.json(updated);
+  return NextResponse.json(created, { status: 201 });
 }
