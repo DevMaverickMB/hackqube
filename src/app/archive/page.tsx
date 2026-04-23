@@ -213,7 +213,7 @@ export default function ArchivePage() {
 
                   {/* Footer: date + status */}
                   <div className="flex items-center gap-2 pt-4 border-t border-border/50 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                    <span>{format(new Date(p.scheduledDate), "MMM d, yy")}</span>
+                    <span>{p.scheduledDate ? format(new Date(p.scheduledDate), "MMM d, yy") : "Unscheduled"}</span>
                     <span className="text-border">·</span>
                     <span>{p.implementationStatus.replace("_", " ")}</span>
                   </div>
@@ -259,7 +259,7 @@ export default function ArchivePage() {
                     <div>
                       <p className="text-sm font-medium">{selected.user.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(selected.scheduledDate), "MMMM d, yyyy")}
+                        {selected.scheduledDate ? format(new Date(selected.scheduledDate), "MMMM d, yyyy") : "Unscheduled"}
                       </p>
                     </div>
                     {selected.score && (

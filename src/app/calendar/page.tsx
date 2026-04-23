@@ -68,6 +68,7 @@ export default function CalendarPage() {
   const scheduleMap = useMemo(() => {
     const map = new Map<string, ScheduleEntry>();
     schedule.forEach((entry) => {
+      if (!entry.scheduledDate) return;
       const key = new Date(entry.scheduledDate).toISOString().split("T")[0];
       map.set(key, entry);
     });
@@ -93,7 +94,7 @@ export default function CalendarPage() {
   // Determine which months have schedule data (for navigation)
   const scheduledMonths = useMemo(() => {
     if (schedule.length === 0) return { first: new Date(), last: new Date() };
-    const dates = schedule.map((s) => new Date(s.scheduledDate));
+    const dates = schedule.filter((s) => s.scheduledDate).map((s) => new Date(s.scheduledDate as string));
     return {
       first: new Date(Math.min(...dates.map((d) => d.getTime()))),
       last: new Date(Math.max(...dates.map((d) => d.getTime()))),
