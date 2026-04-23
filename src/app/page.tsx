@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useVotingStore } from "@/store/voting-store";
 import { UpcomingSessionsCard } from "@/components/dashboard/presenter-card";
 import { VotingBanner } from "@/components/dashboard/voting-banner";
@@ -119,6 +119,19 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDashboard();
   }, [fetchDashboard]);
+
+  // Refetch leaderboard whenever voting becomes inactive (a session just closed)
+  const wasActiveRef = useRef(isActive);
+  useEffect(() => {
+    if (wasActiveRef.current && !isActive) {
+      // Voting just transitioned from open -> closed; refresh leaderboard + schedule
+      fetch("/api/leaderboard")
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data) => setLeaderboard(data.slice(0, 3)))
+        .catch(() => {});
+    }
+    wasActiveRef.current = isActive;
+  }, [isActive]);
 
   if (loading) {
     return (

@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
     return forbiddenResponse();
   }
 
-  // Check if voting window has expired
-  if (new Date() > activeSession.closesAt) {
+  // Check if voting window has expired (with 5s grace period for client clock skew)
+  if (Date.now() > activeSession.closesAt.getTime() + 5000) {
     return forbiddenResponse();
   }
 

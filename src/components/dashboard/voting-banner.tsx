@@ -11,17 +11,25 @@ interface VotingBannerProps {
 }
 
 export function VotingBanner({ children }: VotingBannerProps) {
-  const { isActive, closesAt, hasVoted } = useVotingStore();
+  const { isActive, closesAt, hasVoted, closeVoting } = useVotingStore();
   const [timeLeft, setTimeLeft] = useState(0);
 
   useEffect(() => {
     if (!isActive || !closesAt) return;
 
-    const update = () => setTimeLeft(getTimeRemaining(closesAt));
+    const update = () => {
+      const remaining = getTimeRemaining(closesAt);
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        // Local timer ran out — update store so banner & card reflect closed state
+        // even if the realtime broadcast hasn't arrived yet.
+        closeVoting();
+      }
+    };
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, [isActive, closesAt]);
+  }, [isActive, closesAt, closeVoting]);
 
   if (!isActive) {
     return (
