@@ -55,7 +55,20 @@ export async function DELETE(
     return errorResponse("Schedule entry not found", 404);
   }
 
-  await prisma.presentation.delete({ where: { id } });
+  // Cascade-delete dependent rows (Vote, Score) since the schema doesn't
+  // declare `onDelete: Cascade`. Without this, presentations that have
+  // received votes or a score cannot be removed and the request fails
+  // with a foreign-key violation (surfaces as "Network error" in the UI).
+  try {
+    await prisma.$transaction([
+      prisma.vote.deleteMany({ where: { presentationId: id } }),
+      prisma.score.deleteMany({ where: { presentationId: id } }),
+      prisma.presentation.delete({ where: { id } }),
+    ]);
+  } catch (err) {
+    console.error("Failed to delete schedule entry", id, err);
+    return errorResponse("Failed to delete schedule entry", 500);
+  }
 
   return NextResponse.json({ success: true });
 }

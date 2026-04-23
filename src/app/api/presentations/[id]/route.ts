@@ -118,6 +118,35 @@ export async function DELETE(
     return errorResponse("Only upcoming submissions can be removed", 400);
   }
 
+  // Admins perform a hard delete (also removes related votes/score so we
+  // don't hit a foreign-key violation, since the schema has no ON DELETE
+  // CASCADE). Owners still get a soft delete (status=cancelled) so their
+  // submission record is preserved for audit purposes.
+  if (isAdmin) {
+    try {
+      await prisma.$transaction([
+        prisma.vote.deleteMany({ where: { presentationId: id } }),
+        prisma.score.deleteMany({ where: { presentationId: id } }),
+        prisma.presentation.delete({ where: { id } }),
+      ]);
+    } catch (err) {
+      console.error("Failed to delete presentation", id, err);
+      return errorResponse("Failed to delete presentation", 500);
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: user.id,
+        action: "delete_presentation",
+        targetType: "presentation",
+        targetId: id,
+        afterVal: { hardDeleted: true },
+      },
+    });
+
+    return NextResponse.json({ success: true });
+  }
+
   // Soft delete - mark as cancelled
   const presentation = await prisma.presentation.update({
     where: { id },
