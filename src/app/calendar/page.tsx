@@ -286,7 +286,7 @@ export default function CalendarPage() {
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-white text-sm">{entry.user.name}</p>
-                          <p className="text-xs text-muted-foreground">{format(new Date(entry.scheduledDate), "EEEE, MMM d")}</p>
+                          <p className="text-xs text-muted-foreground">{entry.scheduledDate ? format(new Date(entry.scheduledDate), "EEEE, MMM d") : "Unscheduled"}</p>
                         </div>
                       </div>
 
