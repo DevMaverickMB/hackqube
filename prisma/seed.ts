@@ -324,6 +324,7 @@ async function main() {
 
   for (let p = 0; p < completedCount; p++) {
     const presentation = presentations[p];
+    if (!presentation.scheduledDate) continue;
     const openedAt = new Date(presentation.scheduledDate);
     openedAt.setHours(15, 0, 0, 0); // Opened at 3 PM
     const closesAt = new Date(openedAt);
