@@ -47,17 +47,41 @@ export async function PATCH(
 ) {
   const user = await getCurrentUser();
   if (!user) return unauthorizedResponse();
-  if (user.role !== "admin") return forbiddenResponse();
 
   const { id } = await params;
   const body = await req.json();
 
-  // Whitelist allowed fields to prevent mass assignment
-  const allowedFields = [
-    "title", "problemStatement", "aiToolsUsed", "approach",
-    "demoLink", "impactLevel", "category", "status",
-    "implementationStatus", "attachments",
+  const existing = await prisma.presentation.findUnique({ where: { id } });
+  if (!existing) return errorResponse("Presentation not found", 404);
+
+  const isAdmin = user.role === "admin";
+  const isOwner = existing.userId === user.id;
+
+  if (!isAdmin && !isOwner) return forbiddenResponse();
+
+  // Owners can only edit content fields on their own upcoming submissions.
+  // Admins can edit any field on any presentation.
+  const adminOnlyFields = ["status", "implementationStatus"] as const;
+  const contentFields = [
+    "title",
+    "problemStatement",
+    "aiToolsUsed",
+    "approach",
+    "demoLink",
+    "impactLevel",
+    "category",
+    "attachments",
   ] as const;
+  const allowedFields = isAdmin
+    ? [...contentFields, ...adminOnlyFields]
+    : contentFields;
+
+  if (!isAdmin && existing.status !== "upcoming") {
+    return errorResponse(
+      "Only upcoming submissions can be edited",
+      400
+    );
+  }
 
   const data: Record<string, unknown> = {};
   for (const field of allowedFields) {
@@ -80,9 +104,19 @@ export async function DELETE(
 ) {
   const user = await getCurrentUser();
   if (!user) return unauthorizedResponse();
-  if (user.role !== "admin") return forbiddenResponse();
 
   const { id } = await params;
+
+  const existing = await prisma.presentation.findUnique({ where: { id } });
+  if (!existing) return errorResponse("Presentation not found", 404);
+
+  const isAdmin = user.role === "admin";
+  const isOwner = existing.userId === user.id;
+
+  if (!isAdmin && !isOwner) return forbiddenResponse();
+  if (!isAdmin && existing.status !== "upcoming") {
+    return errorResponse("Only upcoming submissions can be removed", 400);
+  }
 
   // Soft delete - mark as cancelled
   const presentation = await prisma.presentation.update({

@@ -56,6 +56,7 @@ export function ScheduleManager() {
   const [users, setUsers] = useState<User[]>([]);
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
   const [selectedUser, setSelectedUser] = useState("");
+  const [selectedSubmission, setSelectedSubmission] = useState<string>("none");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -98,18 +99,35 @@ export function ScheduleManager() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/schedule", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: selectedUser,
-          scheduled_date: format(selectedDate, "yyyy-MM-dd"),
-        }),
-      });
+      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      let res: Response;
+
+      if (selectedSubmission && selectedSubmission !== "none") {
+        // Schedule an existing unscheduled submission.
+        res = await fetch(`/api/schedule/${selectedSubmission}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: selectedUser,
+            scheduled_date: dateStr,
+          }),
+        });
+      } else {
+        // Create a placeholder schedule entry without a submission.
+        res = await fetch("/api/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: selectedUser,
+            scheduled_date: dateStr,
+          }),
+        });
+      }
 
       if (res.ok) {
         toast.success("Presenter assigned!");
         setSelectedUser("");
+        setSelectedSubmission("none");
         setSelectedDate(undefined);
         fetchData();
       } else {
@@ -182,21 +200,75 @@ export function ScheduleManager() {
     setEditDate(entry.scheduledDate ? new Date(entry.scheduledDate) : undefined);
   };
 
-  // Group schedule entries by date
-  const groupedSchedule = schedule.reduce<
-    { date: string; entries: ScheduleEntry[] }[]
-  >((acc, entry) => {
-    const dateStr = entry.scheduledDate
-      ? entry.scheduledDate.split("T")[0]
-      : "unscheduled";
-    const group = acc.find((g) => g.date === dateStr);
-    if (group) {
-      group.entries.push(entry);
-    } else {
-      acc.push({ date: dateStr, entries: [entry] });
-    }
-    return acc;
-  }, []);
+  // Submissions belonging to the currently selected presenter that aren't
+  // scheduled yet. These are eligible to be attached when assigning a date.
+  const availableSubmissions = selectedUser
+    ? schedule.filter(
+        (s) => s.user.id === selectedUser && s.scheduledDate === null
+      )
+    : [];
+
+  // Split into scheduled (grouped by date, numbered as Day N) and unscheduled.
+  const scheduledGroups = schedule
+    .filter((e) => e.scheduledDate !== null)
+    .reduce<{ date: string; entries: ScheduleEntry[] }[]>((acc, entry) => {
+      const dateStr = entry.scheduledDate!.split("T")[0];
+      const group = acc.find((g) => g.date === dateStr);
+      if (group) group.entries.push(entry);
+      else acc.push({ date: dateStr, entries: [entry] });
+      return acc;
+    }, [])
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const unscheduledEntries = schedule.filter((e) => e.scheduledDate === null);
+
+  const renderEntry = (entry: ScheduleEntry) => (
+    <div
+      key={entry.id}
+      className="flex items-center justify-between rounded-lg border p-3"
+    >
+      <div className="flex items-center gap-3">
+        <div>
+          <p className="font-medium text-sm">{entry.user.name}</p>
+          {entry.title && (
+            <p className="text-xs text-muted-foreground">{entry.title}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Badge
+          variant={entry.status === "completed" ? "default" : "secondary"}
+          className={
+            entry.status === "completed" ? "bg-green-500 text-white" : ""
+          }
+        >
+          {entry.status === "completed" ? (
+            <>
+              <CheckCircle2 className="h-3 w-3 mr-1" /> Completed
+            </>
+          ) : (
+            <>
+              <Clock className="h-3 w-3 mr-1" /> Upcoming
+            </>
+          )}
+        </Badge>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => openEditDialog(entry)}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => setDeleteEntry(entry)}
+        >
+          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -209,12 +281,15 @@ export function ScheduleManager() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
             <div className="space-y-2">
               <Label>Presenter</Label>
               <Select
                 value={selectedUser}
-                onValueChange={(v) => setSelectedUser(v ?? "")}
+                onValueChange={(v) => {
+                  setSelectedUser(v ?? "");
+                  setSelectedSubmission("none");
+                }}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select user">
@@ -229,6 +304,33 @@ export function ScheduleManager() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Submission *</Label>
+              <Select
+                value={selectedSubmission}
+                onValueChange={(v) => setSelectedSubmission(v ?? "none")}
+                disabled={!selectedUser}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select submission" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    No submission (placeholder)
+                  </SelectItem>
+                  {availableSubmissions.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.title?.trim() || "Untitled submission"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedUser && availableSubmissions.length === 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  No unscheduled submissions for this presenter.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Date</Label>
@@ -283,80 +385,32 @@ export function ScheduleManager() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {groupedSchedule.length === 0 ? (
+          {scheduledGroups.length === 0 && unscheduledEntries.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">
               No presentations scheduled yet
             </p>
           ) : (
-            <div className="space-y-3">
-              {groupedSchedule.map((group, gi) => (
+            <div className="space-y-4">
+              {scheduledGroups.map((group, gi) => (
                 <div key={group.date} className="space-y-1">
                   <p className="text-xs font-semibold text-muted-foreground px-1">
                     Day {gi + 1} &mdash;{" "}
-                    {group.date === "unscheduled"
-                      ? "Unscheduled"
-                      : format(new Date(group.date + "T00:00:00"), "EEEE, MMM d, yyyy")}
+                    {format(
+                      new Date(group.date + "T00:00:00"),
+                      "EEEE, MMM d, yyyy"
+                    )}
                   </p>
-                  {group.entries.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="flex items-center justify-between rounded-lg border p-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div>
-                          <p className="font-medium text-sm">
-                            {entry.user.name}
-                          </p>
-                          {entry.title && (
-                            <p className="text-xs text-muted-foreground">
-                              {entry.title}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant={
-                            entry.status === "completed"
-                              ? "default"
-                              : "secondary"
-                          }
-                          className={
-                            entry.status === "completed"
-                              ? "bg-green-500 text-white"
-                              : ""
-                          }
-                        >
-                          {entry.status === "completed" ? (
-                            <>
-                              <CheckCircle2 className="h-3 w-3 mr-1" />{" "}
-                              Completed
-                            </>
-                          ) : (
-                            <>
-                              <Clock className="h-3 w-3 mr-1" /> Upcoming
-                            </>
-                          )}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => openEditDialog(entry)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => setDeleteEntry(entry)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                  {group.entries.map((entry) => renderEntry(entry))}
                 </div>
               ))}
+              {unscheduledEntries.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground px-1">
+                    Unscheduled
+                  </p>
+                  {unscheduledEntries.map((entry) => renderEntry(entry))}
+                </div>
+              )}
             </div>
           )}
         </CardContent>

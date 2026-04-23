@@ -39,21 +39,8 @@ export async function POST(req: NextRequest) {
     attachments: parsed.data.attachments ?? [],
   };
 
-  // Find the user's most recent upcoming presentation (scheduled or not)
-  const existing = await prisma.presentation.findFirst({
-    where: { userId: user.id, status: "upcoming" },
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (existing) {
-    const updated = await prisma.presentation.update({
-      where: { id: existing.id },
-      data,
-    });
-    return NextResponse.json(updated);
-  }
-
-  // No existing submission — create a new unscheduled one. Admin can schedule later.
+  // Always create a new unscheduled submission. Admins can schedule it later
+  // and assign it to a specific date. Users can have multiple submissions.
   const created = await prisma.presentation.create({
     data: {
       ...data,
