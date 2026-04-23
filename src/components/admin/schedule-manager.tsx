@@ -293,7 +293,9 @@ export function ScheduleManager() {
                 <div key={group.date} className="space-y-1">
                   <p className="text-xs font-semibold text-muted-foreground px-1">
                     Day {gi + 1} &mdash;{" "}
-                    {format(new Date(group.date + "T00:00:00"), "EEEE, MMM d, yyyy")}
+                    {group.date === "unscheduled"
+                      ? "Unscheduled"
+                      : format(new Date(group.date + "T00:00:00"), "EEEE, MMM d, yyyy")}
                   </p>
                   {group.entries.map((entry) => (
                     <div
