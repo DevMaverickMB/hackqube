@@ -18,25 +18,6 @@ const ALLOWED_TYPES = new Set([
   "application/zip",
 ]);
 
-let bucketChecked = false;
-async function ensureBucket() {
-  if (bucketChecked) return;
-  const { data, error } = await supabaseAdmin.storage.getBucket(BUCKET);
-  if (!error && data) {
-    bucketChecked = true;
-    return;
-  }
-  // Create the bucket if it does not exist.
-  const { error: createError } = await supabaseAdmin.storage.createBucket(BUCKET, {
-    public: true,
-    fileSizeLimit: MAX_FILE_SIZE,
-  });
-  if (createError && !/already exists/i.test(createError.message)) {
-    throw new Error(`Failed to create storage bucket "${BUCKET}": ${createError.message}`);
-  }
-  bucketChecked = true;
-}
-
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorizedResponse();
@@ -63,14 +44,6 @@ export async function POST(req: NextRequest) {
   const path = `presentations/${user.id}/${Date.now()}_${sanitizedName}`;
 
   const buffer = Buffer.from(await file.arrayBuffer());
-
-  try {
-    await ensureBucket();
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Storage bucket unavailable";
-    console.error(message);
-    return errorResponse(message, 500);
-  }
 
   const { error } = await supabaseAdmin.storage
     .from(BUCKET)
