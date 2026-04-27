@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
   const avgExecution = votes.reduce((s: number, v: { executionScore: number }) => s + v.executionScore, 0) / count;
   const avgHelpfulness = votes.reduce((s: number, v: { helpfulnessScore: number }) => s + v.helpfulnessScore, 0) / count;
   const avgPresentation = votes.reduce((s: number, v: { presentationScore: number }) => s + v.presentationScore, 0) / count;
-  const finalScore = computeFinalScore({ avgIdea, avgExecution, avgHelpfulness, avgPresentation });
+  const finalScore = computeFinalScore({ avgIdea, avgExecution, avgHelpfulness, avgPresentation, voteCount: count });
 
   await prisma.score.upsert({
     where: { presentationId: presentation_id },

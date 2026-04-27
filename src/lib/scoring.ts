@@ -1,14 +1,30 @@
+// Bayesian prior: blends toward a global mean to prevent
+// low-vote-count presentations from dominating the leaderboard.
+// m = number of "phantom" average votes added to every entry.
+//     Tuned for a ~15-person team (max ~14 voters per presentation).
+// C = assumed global mean score (midpoint of 1–5 scale).
+const BAYESIAN_WEIGHT = 3;
+const GLOBAL_MEAN = 3.0;
+
 export function computeFinalScore(scores: {
   avgIdea: number;
   avgExecution: number;
   avgHelpfulness: number;
   avgPresentation: number;
+  voteCount: number;
 }): number {
-  return (
+  const rawScore =
     scores.avgIdea * 0.3 +
     scores.avgExecution * 0.3 +
     scores.avgHelpfulness * 0.2 +
-    scores.avgPresentation * 0.2
+    scores.avgPresentation * 0.2;
+
+  if (scores.voteCount === 0) return 0;
+
+  // Bayesian average: (v / (v + m)) * R + (m / (v + m)) * C
+  return (
+    (scores.voteCount / (scores.voteCount + BAYESIAN_WEIGHT)) * rawScore +
+    (BAYESIAN_WEIGHT / (scores.voteCount + BAYESIAN_WEIGHT)) * GLOBAL_MEAN
   );
 }
 
